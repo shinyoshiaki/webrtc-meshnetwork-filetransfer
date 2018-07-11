@@ -22,7 +22,6 @@ export default class Mesh {
     this.nodeId = nodeId;
     this.peerList = {};
     this.packetIdList = [];
-    this.sendFilePeer = undefined;
     this.ref = {};
     this.state = {
       isConnectPeers: false,
@@ -70,9 +69,14 @@ export default class Mesh {
     this.onBroadCast(packetFormat(def.BROADCAST, { tag: tag, data: data }));
   }
 
-  sendFile(ab, target) {
+  sendFile(arr, target) {
     this.ref.peer = new WebRTC("offer");
-    this.offer(target, this.ref, "file").then(peer => peer.send(ab));
+    this.offer(target, this.ref, "file").then(peer => {
+      arr.forEach(ab => {
+        peer.send(ab);
+      });
+      peer.send("end");
+    });
   }
 
   receiveFile(ab) {
@@ -87,8 +91,9 @@ export default class Mesh {
         for (let target of targetList) {
           if (!this.getAllPeerId().includes(target) && target !== this.nodeId) {
             this.ref.peer = new WebRTC("offer");
-            await this.offer(target, this.ref, "normal").then(peer =>
-              this.addPeer(peer)
+            await this.offer(target, this.ref, "normal").then(
+              peer => this.addPeer(peer),
+              console.log("error")
             );
           }
         }
@@ -216,8 +221,22 @@ export default class Mesh {
                       console.log("answer success");
                       switch (tag) {
                         case "file":
+                          const buffer = [];
                           peer.rtc.on("data", ab => {
-                            this.receiveFile(ab);
+                            console.log("file dc", ab);
+                            try {
+                              const blob = new Blob([ab]);
+                              var reader = new FileReader();
+                              reader.onload = e => {
+                                console.log("str", e.target.result);
+                                if (e.target.result === "end") {
+                                  this.receiveFile(buffer);
+                                } else {
+                                  buffer.push(ab);
+                                }
+                              };
+                              reader.readAsText(blob);
+                            } catch (error) {}
                           });
                           break;
                         default:

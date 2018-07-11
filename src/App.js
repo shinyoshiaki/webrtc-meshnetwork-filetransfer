@@ -11,9 +11,9 @@ class App extends Component {
       textValue: ""
     };
     this.node = new Node("localhost", "20000");
-    this.node.mesh.ev.on("receiveFile", ab => {
-      const blob = new Blob([ab]);
-      console.log("react receive", ab, blob);
+    this.node.mesh.ev.on("receiveFile", arr => {
+      const blob = new Blob(arr);
+      console.log("react receive", arr, blob);
 
       this.setState({
         img: window.URL.createObjectURL(blob)
@@ -26,9 +26,9 @@ class App extends Component {
   }
 
   sendFile() {
-    fileHelper.getFile(this.state.file).then(result => {
-      console.log("ab", result);
-      this.node.mesh.sendFile(result, this.state.textValue);
+    fileHelper.getSliceArrayBuffer(this.state.file).then(arr => {
+      console.log("ab arr", arr);
+      this.node.mesh.sendFile(arr, this.state.textValue);
     });
   }
 

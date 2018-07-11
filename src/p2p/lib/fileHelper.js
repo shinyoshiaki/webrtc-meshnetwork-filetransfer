@@ -39,17 +39,18 @@ export function getFile(file) {
   });
 }
 
-export function getSliceFile(file) {
-  return new Promise(resolve => {
+export function getSliceArrayBuffer(file) {
+  console.log("blob file", file);
+  return new Promise((resolve, reject) => {
     let arr = [];
     const r = new FileReader(),
       blobSlice = File.prototype.slice,
-      chunkSize = 2097152,
+      chunkSize = 16384,
       chunks = Math.ceil(file.size / chunkSize);
     let currentChunk = 0;
     r.onerror = e => {
       console.log("get slice file error", e);
-      resolve(null);
+      reject();
     };
     r.onload = e => {
       arr.push(e.target.result);
@@ -64,7 +65,7 @@ export function getSliceFile(file) {
       const start = currentChunk * chunkSize;
       const end =
         start + chunkSize >= file.size ? file.size : start + chunkSize;
-      r.readAsBinaryString(blobSlice.call(file, start, end));
+      r.readAsArrayBuffer(blobSlice.call(file, start, end));
     }
     loadNext();
   });

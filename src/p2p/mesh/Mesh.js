@@ -76,7 +76,7 @@ export default class Mesh {
         peer.send(ab);
       });
       peer.send("end");
-    });
+    }, console.log("error"));
   }
 
   receiveFile(ab) {
@@ -223,12 +223,11 @@ export default class Mesh {
                         case "file":
                           const buffer = [];
                           peer.rtc.on("data", ab => {
-                            console.log("file dc", ab);
+                            console.log("file dc");
                             try {
                               const blob = new Blob([ab]);
                               var reader = new FileReader();
                               reader.onload = e => {
-                                console.log("str", e.target.result);
                                 if (e.target.result === "end") {
                                   this.receiveFile(buffer);
                                 } else {

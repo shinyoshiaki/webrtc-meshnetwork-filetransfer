@@ -13,8 +13,6 @@ class App extends Component {
     this.node = new Node("localhost", "20000");
     this.node.mesh.ev.on("receiveFile", arr => {
       const blob = new Blob(arr);
-      console.log("react receive", arr, blob);
-
       this.setState({
         img: window.URL.createObjectURL(blob)
       });

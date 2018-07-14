@@ -1,6 +1,5 @@
 import React, { Component } from "react";
 import Node from "./p2p/mesh/Node";
-import * as fileHelper from "./p2p/lib/fileHelper";
 
 class App extends Component {
   constructor(props) {
@@ -24,10 +23,7 @@ class App extends Component {
   }
 
   sendFile() {
-    fileHelper.getSliceArrayBuffer(this.state.file).then(arr => {
-      console.log("ab arr", arr);
-      this.node.mesh.sendFile(arr, this.state.textValue);
-    });
+    this.node.mesh.sendFile(this.state.file, this.state.textValue);
   }
 
   changeText(e) {

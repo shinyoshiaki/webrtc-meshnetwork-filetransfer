@@ -9,6 +9,7 @@
     "react-scripts": "1.1.4",
     "sha1": "^1.1.1",
     "simple-peer": "^9.1.2",
+    "slice-blob": "^1.0.1",
     "socket.io-client": "^2.1.1",
     "spark-md5": "^3.0.0",
     "wrtc": "^0.1.6"

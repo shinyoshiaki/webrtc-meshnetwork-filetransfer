@@ -33,13 +33,16 @@ export default class Mesh {
     peer.rtc.on("data", data => {
       this.onCommand(data);
     });
+    peer.ev.on("receive", buffer => {
+      this.ev.emit("receiveFile", buffer);
+    });
     peer.send(
       JSON.stringify({
         type: def.LISTEN,
         id: this.nodeId
       })
     );
-    this.peerList[peer.targetId] = peer;
+    this.peerList[peer.nodeId] = peer;
     console.log("added peer", this.getAllPeerId());
     this.ev.emit(action.PEER);
   }
@@ -69,14 +72,8 @@ export default class Mesh {
     this.onBroadCast(packetFormat(def.BROADCAST, { tag: tag, data: data }));
   }
 
-  sendFile(arr, target) {
-    this.ref.peer = new WebRTC("offer");
-    this.offer(target, this.ref, "file").then(peer => {
-      arr.forEach(ab => {
-        peer.send(ab);
-      });
-      peer.send("end");
-    }, console.log("error"));
+  sendFile(blob, target) {
+    this.peerList[target].sendFile(blob);
   }
 
   receiveFile(ab) {

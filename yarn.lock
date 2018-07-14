@@ -6702,6 +6702,10 @@ slice-ansi@1.0.0:
   dependencies:
     is-fullwidth-code-point "^2.0.0"
 
+slice-blob@^1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/slice-blob/-/slice-blob-1.0.1.tgz#16dd14689009d4b046b4b964da8a57f8fa658bb6"
+
 snapdragon-node@^2.0.1:
   version "2.1.1"
   resolved "https://registry.yarnpkg.com/snapdragon-node/-/snapdragon-node-2.1.1.tgz#6c175f86ff14bdb0724563e8f3c1b021a286853b"

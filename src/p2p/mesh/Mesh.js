@@ -72,8 +72,8 @@ export default class Mesh {
     this.onBroadCast(packetFormat(def.BROADCAST, { tag: tag, data: data }));
   }
 
-  sendFile(blob, target) {
-    this.peerList[target].sendFile(blob);
+  sendFile(sliceArrayBuffer, target) {
+    this.peerList[target].sendFile(sliceArrayBuffer);
   }
 
   receiveFile(ab) {

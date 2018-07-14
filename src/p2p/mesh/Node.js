@@ -15,7 +15,7 @@ let peerOffer;
 export default class Node {
   constructor(targetAddress, targetPort) {
     this.targetUrl = undefined;
-    if (targetAddress != undefined && targetAddress.length > 0) {
+    if (targetAddress !== undefined && targetAddress.length > 0) {
       this.targetUrl = "http://" + targetAddress + ":" + targetPort;
     }
 
@@ -29,7 +29,7 @@ export default class Node {
       this.ev.emit("ONCOMMAND", datalinkLayer);
     });
 
-    if (this.targetUrl != undefined) {
+    if (this.targetUrl !== undefined) {
       const socket = client.connect(this.targetUrl);
 
       socket.on("connect", () => {

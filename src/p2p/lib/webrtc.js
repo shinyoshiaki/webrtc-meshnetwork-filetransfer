@@ -1,6 +1,5 @@
 import wrtc from "wrtc";
 import simplePeer from "simple-peer";
-import * as fileHelper from "./fileHelper";
 import Events from "events";
 import * as format from "../constants/format";
 
@@ -71,17 +70,13 @@ export default class webrtc {
           this.send(format.packetFormat("FILE_R", sdp));
         });
         const buffer = [];
-        this.ref.answer.on("data", ab => {          
-          const blob = new Blob([ab]);
-          const reader = new FileReader();
-          reader.onload = e => {
-            if (e.target.result === "end") {
-              this.ev.emit("receive", buffer);
-            } else {
-              buffer.push(ab);
-            }
-          };
-          reader.readAsText(blob);
+        this.ref.answer.on("data", ab => {
+          const str = String.fromCharCode.apply("", new Uint16Array(ab));
+          if (str === "end") {
+            this.ev.emit("receive", buffer);
+          } else {
+            buffer.push(ab);
+          }
         });
       } else if (network.type === "FILE_R") {
         this.ref.offer.signal(network.data);
@@ -125,8 +120,7 @@ export default class webrtc {
     }
   }
 
-  async sendFile(blob) {
-    const arr = await fileHelper.getSliceArrayBuffer(blob);
+  async sendFile(sliceArrayBuffer) {
     this.ref.offer = new simplePeer({
       initiator: true,
       config: config,
@@ -137,7 +131,7 @@ export default class webrtc {
       this.send(format.packetFormat("FILE", sdp));
     });
     this.ref.offer.on("connect", () => {
-      arr.forEach(ab => this.ref.offer.send(ab));
+      sliceArrayBuffer.forEach(ab => this.ref.offer.send(ab));
       this.ref.offer.send("end");
     });
   }

@@ -1,4 +1,4 @@
-import WebRTC from "../lib/webrtc";
+import WebRTC from "simple-datachannel";
 import Events from "events";
 import { packetFormat } from "../constants/format";
 
@@ -27,14 +27,71 @@ export default class Mesh {
       isConnectPeers: false,
       isMeshAnswer: false
     };
+    this.resnponder = {};
+    const resnponder = this.resnponder;
+
+    resnponder[def.LISTEN] = network => {
+      console.log("on listen", network.id);
+      this.peerList[network.id].send(
+        JSON.stringify({
+          type: def.ON_LISTEN,
+          data: this.getAllPeerId()
+        })
+      );
+    };
+
+    resnponder[def.ON_LISTEN] = network => {
+      const targetList = network.data;
+      console.log("listen done", targetList);
+      this.connectPeers(targetList);
+    };
+
+    resnponder[def.MESH_MESSAGE] = transport => {
+      console.log("mesh message", transport);
+      this.ev.emit(def.ONCOMMAND, transport);
+    };
+
+    resnponder[def.MESH_OFFER] = transport => {
+      const to = transport.data.to;
+      if (to === this.nodeId) {
+        const from = transport.data.from;
+        const sdp = transport.data.sdp;
+        if (!this.state.isMeshAnswer) {
+          this.state.isMeshAnswer = true;
+          this.ref.peer = new WebRTC();
+          (async () => {
+            await this.answer(from, sdp, this.ref).then(peer => {
+              console.log("answer success");
+              this.addPeer(peer);
+            }, console.log("answer fail"));
+            this.state.isMeshAnswer = false;
+          })();
+        }
+      }
+    };
+
+    resnponder[def.MESH_ANSWER] = transport => {
+      const to = transport.data.to;
+      if (to === this.nodeId) {
+        const sdp = transport.data.sdp;
+        console.log("on mesh answer to me");
+        this.ref.peer.setAnswer(sdp);
+      }
+    };
+
+    resnponder[def.BROADCAST] = network => {
+      const dataLink = JSON.stringify(network);
+      if (this.onBroadCast(dataLink)) {
+        const transport = network.data;
+        console.log("oncommand tag", transport.tag);
+        resnponder[transport.tag](transport);
+      }
+    };
   }
 
   addPeer(peer) {
-    peer.rtc.on("data", data => {
+    peer.ev.on("data", data => {
       this.onCommand(data);
-    });
-    peer.ev.on("receive", buffer => {
-      this.ev.emit("receiveFile", buffer);
     });
     peer.send(
       JSON.stringify({
@@ -72,26 +129,19 @@ export default class Mesh {
     this.onBroadCast(packetFormat(def.BROADCAST, { tag: tag, data: data }));
   }
 
-  sendFile(sliceArrayBuffer, target) {
-    this.peerList[target].sendFile(sliceArrayBuffer);
-  }
-
-  receiveFile(ab) {
-    console.log("received file", ab);
-    this.ev.emit("receiveFile", ab);
-  }
-
   connectPeers(targetList) {
     if (!this.state.isConnectPeers) {
       (async () => {
         this.state.isConnectPeers = true;
         for (let target of targetList) {
           if (!this.getAllPeerId().includes(target) && target !== this.nodeId) {
-            this.ref.peer = new WebRTC("offer");
-            await this.offer(target, this.ref, "normal").then(
-              peer => this.addPeer(peer),
-              console.log("error")
-            );
+            this.ref.peer = new WebRTC();
+            try {
+              const result = await this.offer(target, this.ref);
+              this.addPeer(result);
+            } catch (error) {
+              console.log("offer fail", error);
+            }
           }
         }
         this.state.isConnectPeers = false;
@@ -101,30 +151,48 @@ export default class Mesh {
     }
   }
 
-  offer(target, r, tag) {
+  offer(target, r) {
+    r.peer.makeOffer("json");
+    r.peer.connecting(target);
     return new Promise((resolve, reject) => {
-      console.log(" offer", target);
-      r.peer.connecting(target);
-
-      r.peer.rtc.on("error", err => {
-        console.log(" offer connect error", target, err);
-
-        reject(err);
-      });
-
-      r.peer.rtc.on("signal", sdp => {
+      r.peer.ev.once("signal", sdp => {
         console.log(" offer store", target);
 
         this.broadCast(def.MESH_OFFER, {
           from: this.nodeId,
           to: target,
-          sdp: sdp,
-          tag: tag
+          sdp: sdp
         });
       });
 
-      r.peer.rtc.on("connect", () => {
+      r.peer.ev.once("connect", () => {
         console.log(" offer connected", target);
+        r.peer.connected();
+        resolve(r.peer);
+      });
+
+      setTimeout(() => {
+        reject(false);
+      }, 3 * 1000);
+    });
+  }
+
+  answer(target, sdp, r) {
+    r.peer.makeAnswer(sdp);
+    r.peer.connecting(target);
+    return new Promise((resolve, reject) => {
+      console.log(" answer", target);
+
+      r.peer.ev.once("signal", sdp => {
+        this.broadCast(def.MESH_ANSWER, {
+          from: this.nodeId,
+          to: target,
+          sdp: sdp
+        });
+      });
+
+      r.peer.ev.once("connect", () => {
+        console.log(" answer connected", target);
         r.peer.connected();
         resolve(r.peer);
       });
@@ -135,43 +203,14 @@ export default class Mesh {
     });
   }
 
-  answer(target, sdp, r) {
-    return new Promise((resolve, reject) => {
-      r.peer.connecting(target);
-      console.log(" answer", target);
-      r.peer.rtc.signal(sdp);
-
-      r.peer.rtc.on("error", err => {
-        console.log("error", target, err);
-        reject();
-      });
-
-      r.peer.rtc.on("signal", sdp => {
-        this.broadCast(def.MESH_ANSWER, {
-          from: this.nodeId,
-          to: target,
-          sdp: sdp
-        });
-      });
-
-      r.peer.rtc.on("connect", () => {
-        console.log(" answer connected", target);
-        r.peer.connected();
-        resolve(r.peer);
-      });
-
-      setTimeout(() => {
-        reject();
-      }, 4 * 1000);
-    });
-  }
-
   cleanPeers() {
     const deleteList = [];
     for (let key in this.peerList) {
       if (this.peerList[key].isDisconnected) deleteList.push(key);
     }
-    //console.log("delete list", deleteList);
+    if (deleteList.length > 0) {
+      console.log("delete list", deleteList);
+    }
     deleteList.forEach(v => {
       delete this.peerList[v];
     });
@@ -180,92 +219,9 @@ export default class Mesh {
   onCommand(packet) {
     const json = JSON.parse(packet);
     const type = json.type;
-    switch (type) {
-      case def.LISTEN:
-        console.log("on listen", json.id);
-        this.peerList[json.id].send(
-          JSON.stringify({
-            type: def.ON_LISTEN,
-            data: this.getAllPeerId()
-          })
-        );
-        break;
-      case def.ON_LISTEN:
-        console.log("listen done");
-        const targetList = json.data;
-        this.connectPeers(targetList);
-        break;
-      case def.MESH_MESSAGE:
-        console.log("mesh message", json);
-        this.ev.emit(def.ONCOMMAND, json);
-        break;
-      case def.BROADCAST:
-        if (this.onBroadCast(packet)) {
-          const broadcastData = json.data;
-          console.log("oncommand tag", broadcastData.tag);
-          switch (broadcastData.tag) {
-            case def.MESH_OFFER: {
-              const to = broadcastData.data.to;
-              if (to === this.nodeId) {
-                const from = broadcastData.data.from;
-                const sdp = broadcastData.data.sdp;
-                const tag = broadcastData.data.tag;
-                if (!this.state.isMeshAnswer) {
-                  this.state.isMeshAnswer = true;
-                  this.ref.peer = new WebRTC("answer");
-                  (async () => {
-                    await this.answer(from, sdp, this.ref).then(peer => {
-                      console.log("answer success");
-                      switch (tag) {
-                        case "file":
-                          const buffer = [];
-                          peer.rtc.on("data", ab => {
-                            console.log("file dc");
-                            try {
-                              const blob = new Blob([ab]);
-                              var reader = new FileReader();
-                              reader.onload = e => {
-                                if (e.target.result === "end") {
-                                  this.receiveFile(buffer);
-                                } else {
-                                  buffer.push(ab);
-                                }
-                              };
-                              reader.readAsText(blob);
-                            } catch (error) {}
-                          });
-                          break;
-                        default:
-                          this.addPeer(peer);
-                          break;
-                      }
-                    }, console.log("answer fail"));
-                    this.state.isMeshAnswer = false;
-                  })();
-                }
-              }
-              break;
-            }
-            case def.MESH_ANSWER: {
-              const to = broadcastData.data.to;
-              if (to === this.nodeId) {
-                const sdp = broadcastData.data.sdp;
-                console.log("on mesh answer to me");
-                this.ref.peer.rtc.signal(sdp);
-              }
-              break;
-            }
-            case def.MESH_MESSAGE:
-              this.ev.emit(def.ONCOMMAND, broadcastData);
-              break;
-            default:
-              break;
-          }
-        }
-        break;
-      default:
-        break;
-    }
+
+    this.resnponder[type](json);
+
     this.cleanPeers();
   }
 }

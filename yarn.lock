@@ -6682,6 +6682,13 @@ signal-exit@^3.0.0, signal-exit@^3.0.2:
   version "3.0.2"
   resolved "https://registry.yarnpkg.com/signal-exit/-/signal-exit-3.0.2.tgz#b5fdc08f1287ea1178628e415e25132b73646c6d"
 
+simple-datachannel@^0.0.1:
+  version "0.0.1"
+  resolved "https://registry.yarnpkg.com/simple-datachannel/-/simple-datachannel-0.0.1.tgz#9c7001fffe644a32a81a253e7dc03ce114a1a587"
+  dependencies:
+    events "^3.0.0"
+    wrtc "^0.1.6"
+
 simple-peer@^9.1.2:
   version "9.1.2"
   resolved "https://registry.yarnpkg.com/simple-peer/-/simple-peer-9.1.2.tgz#f8afa5eb83f8a17d66e437e5ac54c1221eca4b39"

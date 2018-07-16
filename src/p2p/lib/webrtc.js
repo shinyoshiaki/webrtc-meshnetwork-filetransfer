@@ -35,7 +35,7 @@ export default class webrtc {
     }
   }
 
-  initOffer() {
+  initOffer() {    
     this.rtc = new simplePeer({
       initiator: true,
       config: config,
@@ -56,31 +56,7 @@ export default class webrtc {
 
   init() {
     this.rtc.on("data", data => {
-      const network = JSON.parse(data);
-      console.log("webrtc received", network);
-      if (network.type === "FILE") {
-        this.ref.answer = new simplePeer({
-          initiator: false,
-          config: config,
-          trickle: false,
-          wrtc: wrtc
-        });
-        this.ref.answer.signal(network.data);
-        this.ref.answer.on("signal", sdp => {
-          this.send(format.packetFormat("FILE_R", sdp));
-        });
-        const buffer = [];
-        this.ref.answer.on("data", ab => {
-          const str = String.fromCharCode.apply("", new Uint16Array(ab));
-          if (str === "end") {
-            this.ev.emit("receive", buffer);
-          } else {
-            buffer.push(ab);
-          }
-        });
-      } else if (network.type === "FILE_R") {
-        this.ref.offer.signal(network.data);
-      }
+      this.onSendFile(data);
     });
 
     this.rtc.on("error", err => {
@@ -117,6 +93,34 @@ export default class webrtc {
     } catch (error) {
       this.disconnected();
       return false;
+    }
+  }
+
+  onSendFile(data) {
+    const network = JSON.parse(data);
+    console.log("webrtc received", network);
+    if (network.type === "FILE") {
+      this.ref.answer = new simplePeer({
+        initiator: false,
+        config: config,
+        trickle: false,
+        wrtc: wrtc
+      });
+      this.ref.answer.signal(network.data);
+      this.ref.answer.on("signal", sdp => {
+        this.send(format.packetFormat("FILE_R", sdp));
+      });
+      const buffer = [];
+      this.ref.answer.on("data", ab => {
+        const str = String.fromCharCode.apply("", new Uint16Array(ab));
+        if (str === "end") {
+          this.ev.emit("receive", buffer);
+        } else {
+          buffer.push(ab);
+        }
+      });
+    } else if (network.type === "FILE_R") {
+      this.ref.offer.signal(network.data);
     }
   }
 

@@ -1,4 +1,4 @@
-import WebRTC from "../lib/webrtc";
+import WebRTC from "simple-datachannel";
 import client from "socket.io-client";
 import Mesh from "./Mesh";
 import sha1 from "sha1";
@@ -38,7 +38,8 @@ export default class Node {
       });
 
       socket.on(def.ANSWER, data => {
-        peerOffer.rtc.signal(data.sdp);
+        console.log(data);
+        peerOffer.setAnswer(data.sdp);
         peerOffer.connecting(data.nodeId);
       });
     }
@@ -46,17 +47,18 @@ export default class Node {
 
   offerFirst(socket) {
     console.log("@cli", "offer first");
-    peerOffer = new WebRTC("offer");
+    peerOffer = new WebRTC();
+    peerOffer.makeOffer("json");
 
-    peerOffer.rtc.on("signal", sdp => {
+    peerOffer.ev.once("signal", sdpValue => {
       socket.emit(def.OFFER, {
-        type: def.OFFER,
         nodeId: this.nodeId,
-        sdp: sdp
+        sdp: sdpValue
       });
     });
 
-    peerOffer.rtc.on("connect", () => {
+    peerOffer.ev.once("connect", () => {
+      console.log("first connected");
       peerOffer.connected();
       setTimeout(() => {
         this.mesh.addPeer(peerOffer);
